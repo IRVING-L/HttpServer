@@ -14,8 +14,8 @@
 #include "lib/http_connect.h"
 #include "lib/epoll_function.h"
 
-#define THREAD_NUMS 4
-#define JOB_NUMS 20
+#define THREAD_NUMS 8
+#define JOB_NUMS 10000
 #define EPOLL_MAX 1024
 #define MAX_CLIENT_NUM 65535
 
@@ -82,7 +82,7 @@ int main(int argc, char const *argv[])
     // listen
     listen(lfd, 5);
 
-    // 创建epoll 对象 和 数组
+    // 创建epoll 对象 和 数组 
     int epollfd = epoll_create(5); // 创建epoll
     // printf("epoll对应的文件描述符为：%d\n", epollfd);
     struct epoll_event epevs[EPOLL_MAX];
@@ -132,20 +132,20 @@ int main(int argc, char const *argv[])
 
                 // 打印信息
 
-                fflush(stdout);
+                // fflush(stdout);
                 inet_ntop(AF_INET, &caddr.sin_addr, clientIP, sizeof(clientIP)); // 网络IP地址的大端转小端
                 clientPort = ntohs(caddr.sin_port);
-                printf("新的一个客户端进来了, cfd: %d, ip:%s, port:%d\n", cfd, clientIP, clientPort);
+                printf("client cfd: %d, ip:%s, port:%d\n", cfd, clientIP, clientPort);
 
                 // 将客户端连接添加到epollfd中去
-                epollAdd(epollfd, cfd, 1);
+                epollAdd(epollfd, cfd, 0);
 
                 // 无法再创建更多的连接了
                 if (Http_Conn::clientCount >= MAX_CLIENT_NUM)
                 {
                     printf("no more resource for new client\n");
                     continue;
-                }
+                } 
                 // 将客户端的信息保存起来
                 usrsJobUnit[cfd].getClientInfo(epollfd, cfd, clientIP, clientPort);
                 // 计数加1
@@ -166,6 +166,7 @@ int main(int argc, char const *argv[])
                 if (usrsJobUnit[currfd].m_read())
                 {
                     // 数据读取完成，交给线程池处理
+                    // printf("*****读取完成，向队列中添加任务\n");
                     pool->append(&usrsJobUnit[currfd]);
                 }
                 else
@@ -177,7 +178,7 @@ int main(int argc, char const *argv[])
             // 【写事件】
             else if (epevs[i].events & EPOLLOUT)
             {
-                printf("准备写入\n");
+                // printf("准备写入\n");
                 if (!usrsJobUnit[currfd].m_write())
                 {
                     // 关闭客户端连接
@@ -185,7 +186,7 @@ int main(int argc, char const *argv[])
                 }
             }
         }
-    }
+    } 
 
     // 释放请求的资源
     close(lfd);

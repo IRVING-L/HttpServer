@@ -12,7 +12,7 @@ void epollAdd(int epfd, int sockfd, bool oneshot)
     ev.data.fd = sockfd;
     // 将sockfd在epollfd中注册为【读】+ 【写】 + 【连接中断】事件, 并同时设置epoll的模式为ET边缘触发
     // ET边缘触发只会通知一次
-    ev.events = EPOLLIN | EPOLLRDHUP | EPOLLET;
+    ev.events = EPOLLIN | EPOLLRDHUP;
     if (oneshot)
     {
         // 将socket注册为触发一次的状态
@@ -60,6 +60,6 @@ void epollMod(int epfd, int sockfd, int event)
     ev.data.fd = sockfd;
     // 将sockfd在epollfd中注册为【读】+【连接中断】事件, 并同时设置epoll的模式为ET边缘触发
     // ET边缘触发只会通知一次
-    ev.events = event | EPOLLRDHUP | EPOLLET | EPOLLONESHOT;
+    ev.events = event | EPOLLRDHUP ;
     epoll_ctl(epfd, EPOLL_CTL_MOD, sockfd, &ev);
 }

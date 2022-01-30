@@ -74,7 +74,7 @@ ThreadPool<T>::ThreadPool(unsigned int t_nums, unsigned int j_nums)
     m_thread_num = t_nums;
     m_queue_len = j_nums;
     // 初始化信号量，表示job队列资源的信号量不变，互斥锁的信号量初始化为1
-    sem_init(&sem_job_src, 0 , 0);
+    sem_init(&sem_job_src, 0, 0);
     sem_init(&sem_job_empty, 0, m_queue_len);
     sem_init(&sem_mutex, 0, 1);
     // 初始化线程池状态
@@ -138,18 +138,22 @@ bool ThreadPool<T>::append(T *newjob)
     // 上互斥锁
     // 用信号量判断job队列是否还有空间
 
-    //printf("添加任务\n");
+    // printf("添加任务\n");
+    // printf("当前工作队列中的任务数量%d\n", m_job_queue.size());
     m_add(newjob);
     return true;
 }
 template <typename T>
 void ThreadPool<T>::m_add(T *newjob)
 {
-    sem_wait(&sem_job_empty); // 工作队列满了，阻塞在此
+    //sem_wait(&sem_job_empty); // 工作队列满了，阻塞在此
     sem_wait(&sem_mutex);
-
+    if(m_job_queue.size() > m_queue_len)
+    {
+        sem_post(&sem_mutex);
+        return;
+    }
     m_job_queue.push(newjob);
-
     sem_post(&sem_mutex);   // 解锁
     sem_post(&sem_job_src); // job资源的信号量加1
 }
@@ -162,7 +166,7 @@ void *ThreadPool<T>::worker(void *arg)
     // 任务的形态应该是什么：
     // 《函数》
     // 其实本质上，仍旧是生产者和消费者模型
-    //printf("执行工作任务\n");
+    // printf("执行工作任务\n");
     ThreadPool *pool = (ThreadPool *)arg;
     pool->m_run();
     return NULL;
@@ -172,11 +176,13 @@ void ThreadPool<T>::m_run()
 {
     while (isRun)
     {
+        // printf("线程%ld正在尝试获取任务\n",pthread_self());
         // 消耗一个资源，如果任务队列没有资源，阻塞等待(就相当于是让线程睡眠了)
         sem_wait(&sem_job_src);
         sem_wait(&sem_mutex); // 互斥锁
 
         // 取出一个任务
+        // printf("线程%ld成功获取任务\n",pthread_self());
         T *Newjob = m_job_queue.front();
         m_job_queue.pop();
 
@@ -185,7 +191,14 @@ void ThreadPool<T>::m_run()
         sem_post(&sem_job_empty);
 
         // 拿到job后，在锁外执行job内具体的函数
-        //printf("线程成功获取任务\n");
+        // printf("线程成功获取任务\n");
+        // 拿到任务后，判断一下任务是否有效：指针指向不为空
+        if (Newjob == nullptr)
+        {
+            printf("invalid NewJob\n");
+            continue;
+        }
+        // printf("线程%ld正在执行任务\n", pthread_self());
         Newjob->process();
     }
 }

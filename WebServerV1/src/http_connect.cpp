@@ -101,7 +101,7 @@ Http_Conn::Http_Conn()
     m_mmapAddr = NULL;
     m_bytesToSend = 0;
     m_bytesHaveSend = 0;
-    //myLog.init();
+    // myLog.init();
 }
 
 // 析构函数
@@ -128,7 +128,9 @@ void Http_Conn::closeConn()
         epollDel(m_epollFd, m_sockFd);
         // 从操作系统中释放fd
         close(m_sockFd);
-        
+        // 清空对象中的变量
+        m_init();
+
         m_sockFd = -1;
         // 计数减一
         clientCount--;
@@ -255,7 +257,7 @@ bool Http_Conn::m_write()
                 m_iov[0].iov_len = m_writeBufIndex - m_bytesHaveSend;
             }
         }
-        else if (m_bytesToSend == 0)
+        else
         {
             // 没有数据需要发送了
             // printf("%s", "数据发送完毕！\n");
@@ -287,6 +289,7 @@ void Http_Conn::process()
     // printf("%s", "现在是process()函数\n");
     // m_init();
     // 解析HTTP请求
+    // printf("执行process\n");
     HTTP_CODE parseRet = httpParse();
     if (HTTP_CODE::BAD_REQUEST == parseRet)
     {
@@ -310,13 +313,14 @@ void Http_Conn::process()
     }
     // 更新【写】状态
     epollMod(m_epollFd, m_sockFd, EPOLLOUT);
+    // printf("退出process\n");
     return;
 }
 // 变量的初始化和销毁
 void Http_Conn::m_init()
 {
     // printf("%s", "现在是m_init()函数\n");
-    //memset(m_readBuf, 0, m_readBufIndex);
+    // memset(m_readBuf, 0, m_readBufIndex);
     m_readBufIndex = 0;
     // memset(m_writeBuf, 0, m_writeBufIndex);
     m_writeBufIndex = 0;
@@ -328,9 +332,16 @@ void Http_Conn::m_init()
     m_contentLength = 0;
     m_checkState = CHECK_STATE::CHECK_STATE_REQUESTLINE;
     memset(m_host, 0, sizeof(m_host));
-    //memset(m_mmapAddr, 0, sizeof(m_mmapAddr));
+    // memset(m_mmapAddr, 0, sizeof(m_mmapAddr));
     m_mmapAddr = NULL;
     // printf("退出m_init()函数\n");
+
+    // 将客户端端口设置为端口复用
+    // int reuse = 1;
+    // if (m_sockFd > 0)
+    // {
+    //     setsockopt(m_sockFd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+    // }
 }
 
 void Http_Conn::m_destroy()
@@ -616,7 +627,7 @@ Http_Conn::HTTP_CODE Http_Conn::responseRequest()
     // 文件存在、文件具有读取权限，打开文件
     int fd = open(absolutePath, O_RDONLY);
     // 创建内存映射
-    m_mmapAddr = (char *)mmap(NULL, m_fileInfo.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    m_mmapAddr = (char *)mmap(0, m_fileInfo.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     // 关闭文件描述符
     close(fd);
     return HTTP_CODE::FILE_REQUEST;
@@ -647,7 +658,7 @@ bool Http_Conn::writeResponse(const char *format, ...)
 // 写入状态行的函数
 bool Http_Conn::writeStatus(int status, const char *text)
 {
-    return writeResponse("%s, %d, %s\r\n", "HTTP/1.1", status, text);
+    return writeResponse("%s %d %s\r\n", "HTTP/1.1", status, text);
 }
 
 // 在首部字段函数中实际执行相应填写的函数
@@ -734,7 +745,7 @@ bool Http_Conn::httpResponse(Http_Conn::HTTP_CODE ret)
     // 200
     case HTTP_CODE::FILE_REQUEST:
         writeStatus(200, ok_200_title);
-        writeHeader(strlen(ok_200_title) + m_fileInfo.st_size);
+        writeHeader(m_fileInfo.st_size);
         m_iov[0].iov_base = m_writeBuf;
         m_iov[0].iov_len = m_writeBufIndex;
         m_iov[1].iov_base = m_mmapAddr;

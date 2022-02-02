@@ -51,7 +51,8 @@
         "ctime": "cpp",
         "ratio": "cpp",
         "future": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "cstring": "cpp"
     },
     "commentTranslate.targetLanguage": "en"
 }

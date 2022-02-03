@@ -41,7 +41,7 @@ public:
     size_t readBytes() const;
     //缓冲区中已经写入的字节数
     size_t writeBytes() const;
-    // 缓冲区头
+    // 缓冲区头。有了缓冲区头+写入的数据长度，便可以在类外使用writev函数进行写入
     const char *beginPtr() const;
     // 将缓冲区中的内容输出成string
     std::string _all2str();

@@ -1,17 +1,22 @@
 #ifndef __BUFFERV2_H__
 #define __BUFFERV2_H__
 #include <iostream>
+#include <string>
 #include <alloca.h>
 #include <unistd.h>
 #include <assert.h>
 #include <strings.h> /* bzero */
+#include <sys/types.h>
+#include <sys/socket.h> /* recv */
 /*
 其他giter大佬们的buffer，是使用vector封装char做的
 我个人认为既然都要自己实现一个内存管理类了，不如更进一步，使用char数组做底层的数据结构
 自己动手写扩容啊什么的函数，正好可以使用C++11之后的std::move以及allocator类等
 权当是锻炼啦
+
+- buffer目前只能接收
 */
-#define BUF_SIZE_INIT 10
+#define BUF_SIZE_INIT 128
 class Buffer
 {
 public:
@@ -36,6 +41,8 @@ public:
     size_t readBytes() const;
     //缓冲区中已经写入的字节数
     size_t writeBytes() const;
+    // 缓冲区头
+    const char *beginPtr() const;
     // 将缓冲区中的内容输出成string
     std::string _all2str();
 
@@ -55,6 +62,8 @@ private:
     char *m_elements;
     // char数组的尾指针
     char *m_end;
+    // string
+    std::string m_str;
 
     size_t m_readPos;
     size_t m_writePos;

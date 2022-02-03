@@ -53,6 +53,70 @@ void Buffer::append(const void *data, size_t len)
     }
     append(static_cast<const char *>(data), len);
 }
+// 从sockfd中读取数据到缓冲区
+ssize_t Buffer::recvFd(int sockfd, int *Errno)
+{
+    // 使用readv分块读，将读取到的大块数据保存在不同的内存中
+    // V2版本暂时不使用分块读，分块读的必要性只有在支持POST时才能发挥作用
+    // 由于要支持ET字段，读取时需要使用while读取到不能读取为止
+    ssize_t len = 0;
+    ssize_t recvBytes = 0;
+    char temBuf[65536] = {0}; // 设定一个缓冲区的缓冲区，这意味着，目前WebServer一次性最大能接受的数据长度不得超过64KB
+    while (true)
+    {
+        len = recv(sockfd, temBuf + recvBytes, 65535 - recvBytes, 0);
+        if (len == -1)
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+                *Errno = errno;
+                break;
+            }
+            *Errno = errno;
+            return -1;
+        }
+        if (len == 0)
+        {
+            // 对端关闭了连接
+            *Errno = errno;
+            return -1;
+        }
+        recvBytes += len;
+    }
+    // 将tmpbuf中的数据调用append写入到缓冲区中
+    // printf("recvFd():%s\n", temBuf);
+    append(temBuf, recvBytes);
+    return recvBytes;
+}
+ssize_t Buffer::writeFd(int sockfd, int *Errno)
+{
+    // 调用send函数，向sockfd中发送数据
+    ssize_t len = 0;
+    ssize_t sendBytes = 0;
+    while(true)
+    {
+        len = send(sockfd, m_elements + readBytes(), readableBytes() - len, 0);
+        if (len == -1)
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+                *Errno = errno;
+                break;
+            }
+            *Errno = errno;
+            return -1;
+        }
+        if (len == 0)
+        {
+            // 对端关闭了连接
+            *Errno = errno;
+            return -1;
+        }
+        m_readPos += len;
+        sendBytes += len;
+    }
+    return sendBytes;
+}
 // 返回缓冲区的大小
 size_t Buffer::_size() const
 {
@@ -80,9 +144,14 @@ size_t Buffer::writeBytes() const
 }
 std::string Buffer::_all2str()
 {
-    std::string str(m_elements, m_writePos);
+    m_str.assign(m_elements, writeBytes());
     _init();
-    return str; // 为什么这里可以返回一个局部变量？
+    return m_str; // 为什么这里可以返回一个局部变量？
+}
+// 缓冲区头
+const char *Buffer::beginPtr() const
+{
+    return m_elements;
 }
 // 私有成员函数
 // 返回当前写指针的位置

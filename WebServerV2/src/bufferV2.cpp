@@ -142,6 +142,10 @@ size_t Buffer::writeBytes() const
 {
     return m_writePos;
 }
+void Buffer::updateReadPtr(size_t pos)
+{
+    m_readPos += pos;
+}
 std::string Buffer::_all2str()
 {
     m_str.assign(m_elements, writeBytes());
@@ -154,11 +158,6 @@ const char *Buffer::beginPtr() const
     return m_elements;
 }
 // 私有成员函数
-// 返回当前写指针的位置
-char *Buffer::curWritePtr()
-{
-    return m_elements + m_writePos;
-}
 // 检查是否有足够的写入空间
 void Buffer::ensureWriteable(size_t len)
 {

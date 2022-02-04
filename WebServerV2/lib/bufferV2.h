@@ -43,12 +43,16 @@ public:
     size_t writeBytes() const;
     // 缓冲区头。有了缓冲区头+写入的数据长度，便可以在类外使用writev函数进行写入
     const char *beginPtr() const;
+    // 当前的读取指针的位置
+    const char *curReadPtr() const {return m_elements + m_readPos;}
+    // 当前的写入指针的位置
+    const char *curWritePtr() const {return m_elements + m_writePos;}
+    // 更新读指针的位置：读指针是对外使用的接口，外部调用读取数据，要及时更新指针的位置
+    void updateReadPtr(size_t pos);
     // 将缓冲区中的内容输出成string
     std::string _all2str();
 
 private:
-    // 返回缓冲区写入指针的位置
-    char *curWritePtr();
     // 检查空间是否足够
     void ensureWriteable(size_t len);
     // 获得更多内存并拷贝已有元素

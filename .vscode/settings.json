@@ -53,7 +53,10 @@
         "future": "cpp",
         "mutex": "cpp",
         "cstring": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "bitset": "cpp",
+        "unordered_set": "cpp",
+        "map": "cpp"
     },
     "commentTranslate.targetLanguage": "en"
 }

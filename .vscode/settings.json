@@ -52,7 +52,8 @@
         "ratio": "cpp",
         "future": "cpp",
         "mutex": "cpp",
-        "cstring": "cpp"
+        "cstring": "cpp",
+        "regex": "cpp"
     },
     "commentTranslate.targetLanguage": "en"
 }

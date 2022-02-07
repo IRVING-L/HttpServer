@@ -19,7 +19,8 @@ enum class Httprequest::HTTP_CODE : int
     INTERNAL_ERROR,
     CLOSED_CONNECTION
 };
-
+const std::unordered_set<std::string> Httprequest::DEFAULT_HTML{
+    "/index", "/welcome", "/video", "/picture"};
 Httprequest::Httprequest() { _init(); }
 
 // 成员函数
@@ -30,6 +31,7 @@ void Httprequest::_init()
     m_header.clear();
     m_post.clear();
 }
+
 // 解析请求报文
 bool Httprequest::parse(Buffer &buff)
 {
@@ -65,6 +67,7 @@ bool Httprequest::parse(Buffer &buff)
             break;
         case PARSE_STATE::BODY:
             _parseDataBody(line);
+
             break;
         default:
             break;
@@ -75,5 +78,90 @@ bool Httprequest::parse(Buffer &buff)
         }
         // 更新读指针的位置
         buff.updateReadPtr(static_cast<size_t>(lineEnd - buff.curReadPtr()) + 2);
+    }
+}
+
+bool Httprequest::_parseRequestLine(const std::string &line) //解析请求行
+{
+    // 使用C++11的正则表达式进行查找
+    std::regex patten("^([^ ]*) ([^ ]*) HTTP/([^ ]*)$"); //
+    std::smatch subMatch;                                // 存储查找得到的结果？
+    if (std::regex_match(line, subMatch, patten))
+    {
+        // 查找到了，并把查找得到的结果保存在subMatch中
+        m_method = subMatch[1];
+        m_path = subMatch[2];
+        m_version = subMatch[3];
+        // 更改状态机的状态
+        m_state = PARSE_STATE::HEADERS; // 接下来去解析首部字段
+        return true;
+    }
+    return false;
+}
+void Httprequest::_parseRequestHeader(const std::string &line) //解析请求头
+{
+    std::regex patten("^([^:]*): ?(.*)$");
+    std::smatch subMatch;
+    if (std::regex_match(line, subMatch, patten))
+    {
+        m_header[subMatch[1]] = subMatch[2];
+    }
+    else
+    {
+        // 首部字段解析完毕
+        m_state = PARSE_STATE::BODY;
+    }
+}
+void Httprequest::_parseDataBody(const std::string &line) //解析数据体
+{
+    m_body = line;
+    _parsePost();
+    m_state = PARSE_STATE::FINISH;
+}
+void Httprequest::_parsePath() //解析请求资源的网址
+{
+    if (m_path == "/")
+    {
+        // 访问首页,自动跳转到固定资源位置
+        m_path = "/index.html";
+    }
+    else
+    {
+        // 查找
+        for (auto &item : DEFAULT_HTML)
+        {
+            if (item == m_path)
+            {
+                m_path += ".html";
+                break;
+            }
+        }
+    }
+}
+
+//获取HTTP信息
+std::string Httprequest::path() const
+{
+    return m_path;
+}
+std::string Httprequest::method() const
+{
+    return m_method;
+}
+std::string Httprequest::version() const
+{
+    return m_version;
+}
+std::string Httprequest::getPost(const std::string &key) const
+{
+}
+std::string Httprequest::getPost(const char *key) const
+{
+}
+bool Httprequest::isKeepAlive() const
+{
+    if (m_header.count("Connection") > 0)
+    {
+        return m_header.find("Connection")->second == "keep-alive" && m_version == "HTTP/1.1";
     }
 }

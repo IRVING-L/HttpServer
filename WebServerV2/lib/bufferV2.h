@@ -51,6 +51,8 @@ public:
     void updateReadPtr(size_t pos);
     // 将缓冲区中的内容输出成string
     std::string _all2str();
+    // 将指针和变量初始化
+    void _init();
 
 private:
     // 检查空间是否足够
@@ -59,8 +61,7 @@ private:
     void allocateSpace(size_t len);
     // 销毁元素并释放内存
     void _free();
-    // 将指针和变量初始化
-    void _init();
+    
     // 底层的数据结构，char数组
     // char数组的头指针
     char *m_elements;

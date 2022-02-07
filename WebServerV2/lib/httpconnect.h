@@ -6,18 +6,21 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <atomic>
+#include "httprequest.h"
+#include "httpresponse.h"
+#include "bufferV2.h"
 /*
 httpconnect.h 是整个服务器代码中，事件处理的核心
 其主要功能在于能够完成对客户端发来的http进行解析并
 作出响应
 */
 
-class HTTPconnection
+class Httpconnection
 {
 public:
-    HTTPconnection();
-    ~HTTPconnection();
-
+    Httpconnection();
+    ~Httpconnection();
+    
     void initHTTPConn(int socketFd, const sockaddr_in &addr);
 
     //每个连接中定义的对缓冲区的读写接口
@@ -34,6 +37,8 @@ public:
     int getPort() const;
     int getFd() const;
     sockaddr_in getAddr() const;
+    int writeBytes();
+    bool isKeepAlive() const;
 
     static bool isET;
     static const char *srcDir;
@@ -47,8 +52,11 @@ private:
     int m_iovCnt;
     struct iovec m_iov[2]; // 用于分散写writev的结构体
 
-    char m_readBuf[1024];
-    char m_writeBuf[1024];
+    Buffer m_readBuf;
+    Buffer m_writeBuf;
+
+    Httprequest m_request;
+    Httpresponse m_response;
 };
 
 #endif

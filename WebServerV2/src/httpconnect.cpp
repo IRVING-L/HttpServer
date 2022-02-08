@@ -141,7 +141,10 @@ sockaddr_in Httpconnection::getAddr() const
 {
     return m_addr;
 }
-int writeBytes();
+int Httpconnection::writeBytes()
+{
+    return m_iov[0].iov_len + m_iov[1].iov_len;
+}
 bool Httpconnection::isKeepAlive() const
 {
     return m_request.isKeepAlive();

@@ -247,19 +247,50 @@ void Webserver::onRead(Httpconnection *client)
     int ret = -1;
     int readErrno = 0;
     ret = client->readBuffer(&readErrno);
-    if(ret <= 0 && readErrno != EAGAIN)
+    if (ret <= 0 && readErrno != EAGAIN)
     {
         closeConn(client);
         return;
     }
     onProcess(client);
 }
-void Webserver::onWrite(Httpconnection *client);
+void Webserver::onWrite(Httpconnection *client)
+{
+    if (client == nullptr)
+    {
+        std::cout << "location:webserver.cpp:handleWrite,"
+                  << "error:invalid client" << std::endl;
+        return;
+    }
+    int ret = -1;
+    int writeErrno = 0;
+    ret = client->writeBuffer(&writeErrno);
+    if(client->writeBytes() == 0)
+    {
+        if(client->isKeepAlive())
+        {
+            onProcess(client);
+            return;
+        }
+    }
+    else if(ret < 0)
+    {
+        if(writeErrno == EAGAIN)
+        {
+            m_epoller->mod(client->getFd(), m_connectEvent | EPOLLOUT);
+            return;
+        }
+    }
+    else
+    {
+        closeConn(client);
+    }
+}
 void Webserver::onProcess(Httpconnection *client)
 {
-    if(client->handleHTTPConn())
+    if (client->handleHTTPConn())
     {
-        m_epoller->mod(client->getFd(), m_connectEvent | EPOLLOUT);        
+        m_epoller->mod(client->getFd(), m_connectEvent | EPOLLOUT);
     }
     else
     {
@@ -269,9 +300,29 @@ void Webserver::onProcess(Httpconnection *client)
 
 void Webserver::sendError(int fd, const char *info)
 {
-
+    if (fd < 0)
+    {
+        std::cout << "location:webserver.cpp:sendErr,"
+                  << "error:invalid fd" << std::endl;
+        return;
+    }
+    int ret = send(fd, info, strlen(info)+1, 0);
+    if(ret < 0)
+    {
+        std::cout << "error\n"; 
+    }
+    close(fd);
 }
 void Webserver::extentTime(Httpconnection *client)
 {
-    
+    if (client == nullptr)
+    {
+        std::cout << "location:webserver.cpp:extentTime,"
+                  << "error:invalid client" << std::endl;
+        return;
+    }
+    if(m_timeoutMs > 0)
+    {
+        m_timer->updateTimer(client->getFd(), m_timeoutMs);
+    }
 }

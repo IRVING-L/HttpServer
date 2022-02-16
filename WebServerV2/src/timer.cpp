@@ -130,7 +130,7 @@ void TimeManager::handleExpiredEvent()
     while(!m_heap.empty())
     {
         Timenode node = m_heap.front();
-        if(std::chrono::duration_cast<_ms>(node.m_expire- _clock::now()).count() > 0)
+        if(std::chrono::duration_cast<_ms>(node.m_expire - _clock::now()).count() > 0)
         {
             /*
              timeout是预先设定的socket可以持续的时间
@@ -144,10 +144,12 @@ void TimeManager::handleExpiredEvent()
 }
 int TimeManager::getNextHandle()
 {
+    // 先去小根堆看一下有没有过期的socket通信。如果有，关闭该socket通信
     handleExpiredEvent();
     int res = -1;
     if(!m_heap.empty())
     {
+        // 获取小根堆中第一个还没有过期的结点的时间，单位是us
         res = std::chrono::duration_cast<_ms>(m_heap.front().m_expire - _clock::now()).count();
         if(res < 0){res = 0;}
     }

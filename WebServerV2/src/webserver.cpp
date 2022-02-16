@@ -31,6 +31,16 @@ void Webserver::start() // 程序启动
     {
         if (m_timeoutMs > 0)
         {
+            /* 
+            这里要弄清楚几个点：
+                - 为什么要将传递给epoll_wait的时间参数，通过getNextHandle修改？
+                    - 让epoll_wait更加socket通信的状态，灵活调整等待时间
+                        - 意义：epoll在项目中在监听socket的文件描述符--》哪些文件描述符--》新socket进来、某个socket上的读或者写事件
+                            感觉这样设定意义不大（2022年2月16日19:47:01）
+                            处理过期的socket节点
+                - getNextHandle会做一件什么事情？
+                    - 获取到第一个快过期的结点的剩余时间（ms）
+            */
             timeMs = m_timer->getNextHandle();
         }
         int eventCnt = m_epoller->wait(timeMs);
@@ -155,12 +165,20 @@ void Webserver::initEventMode(int trigMode)
         m_listenEvent |= EPOLLET;
         break;
     default:
+        // 其他就是都LT
         break;
     }
     Httpconnection::isET = m_connectEvent & EPOLLET;
 }
 void Webserver::addClientConnect(int fd, struct sockaddr_in addr) // 添加一个连接
 {
+    /*
+    在webServer类对象中，添加一个新的客户端连接的过程：
+        - 初始化Httpconnection对象：哈希表m_usrs中新建一个对象（Httpconnection），调用Httpconnection对象的init函数，初始化其对象的变量
+        - 添加定时器：在定时器管理类中，添加新的socket，并且设置超时时间 == m_timeoutMs
+        - 添加到epoll中：将socket的文件描述符添加到epoll中，设置事件 == EPOLL | m_connectEvent
+        - 将socket连接这个fd设置为非阻塞状态。目的：在调用read/recv函数时，发送方如果没有发送数据，并不会阻塞在那里
+    */
     if (fd < 0)
     {
         std::cout << "location:webserver.cpp:addClient,"
@@ -168,6 +186,7 @@ void Webserver::addClientConnect(int fd, struct sockaddr_in addr) // 添加一�
         return;
     }
     // 参数addr用的是拷贝，而不是引用或者指针，这是因为传入的addr下一次会被更新
+    // 哈希表中没有fd这个key时，会以fd为key，调用value的构造函数，创建出这样一个键值对
     m_usrs[fd].initHTTPConn(fd, addr);
     if (m_timeoutMs > 0)
     {
@@ -178,6 +197,14 @@ void Webserver::addClientConnect(int fd, struct sockaddr_in addr) // 添加一�
 }
 void Webserver::closeConn(Httpconnection *client)
 {
+    /*
+    关闭一个socket连接的步骤：
+        - 从epoll中删除：调用epoller类对象的del函数删除
+        - 释放Httpconnection对象：调用Httpconnection对象的closeHttpConn函数（释放内存映射、关闭文件描述符）
+        - 是否要从定时器管理类中释放对象：
+            - 不需要：一段时间后没有发生改变就会被删掉了
+                - 定时器管理类能否正确删除
+    */
     if (client == nullptr)
     {
         std::cout << "location:webserver.cpp:closeConn,"
@@ -207,7 +234,9 @@ void Webserver::handleListen()
             return;
         }
         addClientConnect(cfd, addr);
-    } while (m_listenEvent & EPOLLET);
+    } while (m_listenEvent & EPOLLET); 
+    // 如果不是ET模式，该条件为0，退出循环。不过一般来说不会让listenFd设置为ET模式
+    // 如果设置为ET模式了，什么时候会退出循环？似乎不会结束循环？当没有新的客户端进来后，accept是否会被阻塞在这里？
 }
 void Webserver::handleWrite(Httpconnection *client)
 {
@@ -230,6 +259,7 @@ void Webserver::handleRead(Httpconnection *client)
                   << "error:invalid client" << std::endl;
         return;
     }
+    // 这个socket上有读事件到来，需要在定时器类中更新该socket的时间
     extentTime(client);
     // 向线程池中提交任务
     // 在线程池中，通过异步函数，读取数据？
@@ -269,6 +299,7 @@ void Webserver::onWrite(Httpconnection *client)
     {
         if(client->isKeepAlive())
         {
+            // 这一步是什么意思？
             onProcess(client);
             return;
         }

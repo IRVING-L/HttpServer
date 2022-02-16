@@ -1,14 +1,10 @@
 #include "../lib/webserver.h"
 
 Webserver::Webserver(int port, int trigMode, int timeoutMS, bool optLinger, int threadNum)
+    :m_port(port), m_timeoutMs(timeoutMS), m_openLinger(optLinger), 
+    m_timer(new TimeManager()), m_pool(new Threadpool(threadNum)), m_epoller(new Epoller())  
 {
-    m_port = port;
     initEventMode(trigMode);
-    m_timeoutMs = timeoutMS;
-    m_openLinger = optLinger;
-    m_pool = std::make_unique<Threadpool>(threadNum);
-    m_timer = std::make_unique<TimeManager>();
-    m_epoller = std::make_unique<Epoller>();
     m_isclose = (initSocket() ? false : true);
 }
 Webserver::~Webserver()
@@ -132,7 +128,7 @@ bool Webserver::initSocket()
         return false;
     }
     ret = m_epoller->add(m_listenFd, m_listenEvent | EPOLLIN);
-    if (ret = 0)
+    if (ret == 0)
     {
         close(m_listenFd);
         return false;

@@ -3,7 +3,7 @@
 Epoller::Epoller(int maxevents)
     : m_epollFd(epoll_create(1)), m_epEves(maxevents) {}
 
-int Epoller::wait(int timeout = -1)
+int Epoller::wait(int timeout)
 {
     int nums = epoll_wait(m_epollFd, &m_epEves[0], static_cast<int>(m_epEves.size()), timeout);
     return nums;
